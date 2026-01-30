@@ -1,0 +1,13 @@
+{
+  "name": "@atelierschork/typescript-config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "base.json",
+    "sanity.json"
+  ]
+}

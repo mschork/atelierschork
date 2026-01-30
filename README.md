@@ -1,33 +1,80 @@
-# Atelier Schork Sanity Studio
+# Atelier Schork
 
-Sanity Content Studio for Atelier Schork, an open-source real-time content editing environment connected to the Sanity backend.
+Monorepo for Atelier Schork, an artistic collaboration between Francisco and Markus Schork.
+
+## Project Structure
+
+```
+atelierschork/
+├── apps/
+│   ├── studio/          # Sanity Content Studio
+│   └── web/             # Frontend (coming soon)
+├── packages/
+│   ├── typescript-config/  # Shared TypeScript configurations
+│   └── eslint-config/      # Shared ESLint configurations
+├── documentation/       # Content model and project documentation
+└── turbo.json           # Turborepo configuration
+```
 
 ## Getting Started
 
-1. Clone this repository
-2. Run `npm install` to install dependencies
-3. Set up environment variables (see below)
-4. Run `npm run dev` to start the development server
+### Prerequisites
 
-## Environment Variables
+- Node.js 18+
+- pnpm 9+ (`npm install -g pnpm`)
 
-This project uses environment variables to configure the Sanity Studio. The following files are used:
+### Installation
 
-- `.env`: Contains production environment variables
-- `.env.local`: Contains local development environment variables (not committed to Git)
+```bash
+# Install dependencies
+pnpm install
 
-### Setting Up Local Environment
+# Start Sanity Studio development server
+pnpm studio
+```
 
-1. Copy the example file: `cp .env.local.example .env.local`
-2. Edit `.env.local` with your specific configuration
+## Available Commands
 
-### Available Variables
+| Command | Description |
+|---------|-------------|
+| `pnpm studio` | Start Sanity Studio dev server |
+| `pnpm studio:build` | Build Sanity Studio for production |
+| `pnpm studio:deploy` | Deploy Sanity Studio to Sanity's hosted service |
+| `pnpm dev` | Start all apps in development mode |
+| `pnpm build` | Build all apps |
+| `pnpm lint` | Run linting across all packages |
+| `pnpm typecheck` | Run TypeScript type checking |
 
+## Apps
+
+### Studio (`apps/studio`)
+
+Sanity Content Studio for managing artworks, projects, exhibitions, people, awards, and related content.
+
+**Environment Setup:**
+
+```bash
+cd apps/studio
+cp .env.local.example .env.local
+# Edit .env.local with your Sanity project credentials
+```
+
+**Required Variables:**
 - `SANITY_STUDIO_PROJECT_ID`: Your Sanity project ID
-- `SANITY_STUDIO_DATASET`: The dataset to use (e.g., 'production', 'development')
+- `SANITY_STUDIO_DATASET`: Dataset name (e.g., 'production', 'development')
+
+### Web (`apps/web`)
+
+Frontend application (coming soon).
+
+## Documentation
+
+See the `/documentation` directory for:
+- Content model specification
+- Sample data and GROQ queries
+- Implementation guides
 
 ## Additional Resources
 
-- [Read "getting started" in the docs](https://www.sanity.io/docs/introduction/getting-started?utm_source=readme)
-- [Join the community Slack](https://slack.sanity.io/?utm_source=readme)
-- [Extend and build plugins](https://www.sanity.io/docs/content-studio/extending?utm_source=readme)
+- [Sanity Documentation](https://www.sanity.io/docs)
+- [Turborepo Documentation](https://turbo.build/repo/docs)

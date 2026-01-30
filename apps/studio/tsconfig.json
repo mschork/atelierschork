@@ -1,0 +1,8 @@
+{
+  "extends": "@atelierschork/typescript-config/sanity.json",
+  "compilerOptions": {
+    "incremental": true
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

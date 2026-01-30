@@ -4,15 +4,71 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Sanity Studio** project for Atelierschork.com, an artistic collaboration between Francisco and Markus Schork. The studio manages content for artworks, projects, exhibitions, people, awards, and related taxonomies.
+This is a **Turborepo monorepo** for Atelierschork.com, an artistic collaboration between Francisco and Markus Schork. The project includes a Sanity Content Studio and will include a frontend in the future.
+
+## Repository Structure
+
+```
+atelierschork/
+├── apps/
+│   ├── studio/                    # Sanity Content Studio
+│   │   ├── sanity.config.ts       # Studio configuration
+│   │   ├── sanity.cli.ts          # CLI configuration
+│   │   ├── deskStructure.ts       # Custom desk structure
+│   │   ├── schemaTypes/           # Content schemas
+│   │   ├── migrations/            # Data migrations
+│   │   └── static/                # Static assets
+│   └── web/                       # Frontend (coming soon)
+├── packages/
+│   ├── typescript-config/         # Shared TypeScript configs
+│   └── eslint-config/             # Shared ESLint configs
+├── documentation/                 # Content model documentation
+├── turbo.json                     # Turborepo task configuration
+├── pnpm-workspace.yaml            # pnpm workspace definition
+└── package.json                   # Root workspace config
+```
+
+## Package Manager
+
+This project uses **pnpm** (not npm). Install with `npm install -g pnpm` if needed.
+
+## Common Commands
+
+### Root-Level Commands (from project root)
+```bash
+pnpm install              # Install all dependencies
+pnpm studio               # Start Sanity Studio dev server
+pnpm studio:build         # Build Studio for production
+pnpm studio:deploy        # Deploy to Sanity's hosted studio
+pnpm dev                  # Start all apps in dev mode
+pnpm build                # Build all apps
+pnpm lint                 # Lint all packages
+pnpm typecheck            # Type check all packages
+```
+
+### Studio-Specific Commands (from apps/studio)
+```bash
+pnpm dev                  # Start dev server (localhost:3333)
+pnpm build                # Build production studio
+pnpm deploy               # Deploy to Sanity's hosted studio
+pnpm deploy-graphql       # Deploy GraphQL API
+```
+
+### Migrations (from apps/studio)
+```bash
+npx sanity migration run <migration-name>
+```
+
+Migrations are located in `apps/studio/migrations/` directory.
 
 ## Environment Setup
 
 ### Required Environment Variables
 
-Create `.env.local` from `.env.local.example`:
+Navigate to `apps/studio/` and create `.env.local` from `.env.local.example`:
 
 ```bash
+cd apps/studio
 cp .env.local.example .env.local
 ```
 
@@ -20,40 +76,11 @@ Required variables:
 - `SANITY_STUDIO_PROJECT_ID` - Your Sanity project ID
 - `SANITY_STUDIO_DATASET` - Dataset name (e.g., 'production', 'development')
 
-Both `sanity.config.ts` and `sanity.cli.ts` read from these environment variables.
-
-## Common Commands
-
-### Development
-```bash
-npm install          # Install dependencies
-npm run dev          # Start dev server (localhost:3000)
-npm run start        # Alternative to dev
-```
-
-### Build & Deploy
-```bash
-npm run build        # Build production studio
-npm run deploy       # Deploy to Sanity's hosted studio
-```
-
-### GraphQL
-```bash
-npm run deploy-graphql    # Deploy GraphQL API
-```
-
-### Migrations
-```bash
-npx sanity migration run <migration-name>    # Run a specific migration
-```
-
-Migrations are located in `/migrations` directory and use the Sanity migration framework.
-
 ## Schema Architecture
 
 ### Core Content Model
 
-The content model is organized into several layers:
+All schema types are defined in `apps/studio/schemaTypes/`:
 
 **Main Content Documents:**
 - `person` - Artists, curators, collaborators (with role references)
@@ -79,7 +106,6 @@ The content model is organized into several layers:
 
 ### Schema Organization
 
-All schema types are defined in `/schemaTypes/`:
 - Each document type has its own file (e.g., `person.ts`, `artwork.ts`)
 - `index.ts` exports all schemas as `schemaTypes` array
 - Legacy fields exist for migrations (e.g., `medium` → `mediaType`)
@@ -114,7 +140,7 @@ All document types use react-icons/bs (Bootstrap icons) for visual identificatio
 
 ## Desk Structure
 
-Custom desk structure is defined in `deskStructure.ts` using **section titles** via `S.divider().title()`:
+Custom desk structure is defined in `apps/studio/deskStructure.ts` using **section titles** via `S.divider().title()`:
 
 **Work** (section title)
 - Projects - All projects in one list
@@ -138,12 +164,6 @@ Custom desk structure is defined in `deskStructure.ts` using **section titles** 
 
 **Website Settings** (section title)
 - Site Settings - Singleton document with fixed ID `siteSettings`
-
-**Implementation:**
-- Section titles are created using `S.divider().title('Section Name')`
-- This creates visual headers in a flat list structure
-- Each section title is followed by the relevant document types
-- This approach provides clear organization without nested navigation
 
 ### Dynamic Structure Pattern
 
@@ -177,26 +197,10 @@ const deskStructure: StructureResolver = async (S, context) => {
 }
 ```
 
-**How it works:**
-- Structure resolver is `async` to allow database queries
-- Fetches all `projectType` documents on structure load
-- Maps over types to create individual list items in the Work section
-- Each type gets its own filtered project list (e.g., "🎨 Art" shows only Art projects)
-- **Updates when Studio reloads** - refresh to see new project types
-- Uses spread operator (`...`) to inline the dynamically created items
-
-**Key differences from nested approach:**
-- Project types appear directly in the main list (flat structure)
-- Requires async structure resolver
-- Slightly slower initial load but cleaner UX
-- Better for when you have 3-10 categories; nested approach better for 10+
-
-This pattern can be applied to any taxonomy that documents reference (tags, categories, media types, etc.).
-
 ## Important Migration Context
 
 **Person vs Artist Schema:**
-The project previously had separate `artist` and `person` schemas but consolidated to a single `person` schema with role references. Migration files exist in `/migrations` to handle this transition.
+The project previously had separate `artist` and `person` schemas but consolidated to a single `person` schema with role references. Migration files exist in `apps/studio/migrations/` to handle this transition.
 
 **Legacy Fields:**
 - `medium` schema still exists but is deprecated in favor of `mediaType`
@@ -211,15 +215,9 @@ Comprehensive content model documentation exists in `/documentation/atelierschor
 - `sample-data.md` - Example data and GROQ queries
 - `implementation-guide.md` - Technical implementation details
 
-**Refer to this documentation** when:
-- Understanding the intended content model design
-- Making schema changes
-- Writing GROQ queries
-- Understanding relationships between document types
-
 ## Code Style
 
-**Prettier configuration** (from package.json):
+**Prettier configuration** (from root package.json):
 ```json
 {
   "semi": false,
@@ -273,9 +271,9 @@ prepare(selection) {
 
 ## Working with Migrations
 
-Migrations use the Sanity migration framework and are TypeScript files in `/migrations`.
+Migrations use the Sanity migration framework and are TypeScript files in `apps/studio/migrations/`.
 
-**Migration execution:**
+**Migration execution (from apps/studio):**
 ```bash
 npx sanity migration run <migration-name>
 ```
@@ -288,16 +286,18 @@ npx sanity migration run <migration-name>
 
 ## Key Architecture Decisions
 
-1. **Flexible artist attribution** - Artworks support multiple artists via array references, enabling collaborative work
-2. **Multi-media support** - Artworks can have multiple media types simultaneously
-3. **Role-based person schema** - Single `person` type with role references instead of separate artist/curator types
-4. **Grouped fields** - All major schemas use field groups for UX organization
-5. **Singleton settings** - Site settings is a singleton document with fixed ID
-6. **Custom desk structure** - Organized by content type with dividers and icons for clarity
+1. **Turborepo monorepo** - Unified build system with shared configurations
+2. **pnpm workspaces** - Efficient dependency management across packages
+3. **Flexible artist attribution** - Artworks support multiple artists via array references
+4. **Multi-media support** - Artworks can have multiple media types simultaneously
+5. **Role-based person schema** - Single `person` type with role references instead of separate artist/curator types
+6. **Grouped fields** - All major schemas use field groups for UX organization
+7. **Singleton settings** - Site settings is a singleton document with fixed ID
+8. **Custom desk structure** - Organized by content type with dividers and icons for clarity
 
 ## Studio Configuration
 
-**Key files:**
+**Key files (in apps/studio/):**
 - `sanity.config.ts` - Main Studio configuration with plugins and schema
 - `sanity.cli.ts` - CLI configuration with project ID, dataset, and deployment settings
 - `deskStructure.ts` - Custom desk organization
@@ -310,4 +310,24 @@ npx sanity migration run <migration-name>
 - Studio host: `atelierschork`
 - App ID: `yzxbkxz7w1hhvsngvy4s1gsz`
 - Auto-updates: enabled
-- Always update the @CLAUDE.md file with relevant information after changes made to the code base
+
+## Shared Packages
+
+### @atelierschork/typescript-config
+Shared TypeScript configurations:
+- `base.json` - Base configuration for all packages
+- `sanity.json` - Sanity-specific TypeScript settings
+
+### @atelierschork/eslint-config
+Shared ESLint configurations:
+- `sanity.mjs` - ESLint config for Sanity Studio
+
+## Adding a New App (Future)
+
+When adding the frontend (`apps/web`):
+1. Create the app in `apps/web/`
+2. Update `package.json` with name `@atelierschork/web`
+3. Run `pnpm install` to link workspace dependencies
+4. Add relevant scripts to root `package.json` if needed
+
+Always update this CLAUDE.md file with relevant information after changes to the codebase.

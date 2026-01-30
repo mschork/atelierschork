@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -10,7 +11,11 @@
     "moduleDetection": "force",
     "isolatedModules": true,
     "jsx": "preserve",
-    "incremental": true
+    "incremental": true,
+    "declaration": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
   },
   "exclude": ["node_modules"]
 }

@@ -1,0 +1,16 @@
+{
+  "name": "@atelierschork/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "exports": {
+    "./sanity": "./sanity.mjs"
+  },
+  "files": [
+    "sanity.mjs"
+  ],
+  "devDependencies": {
+    "@sanity/eslint-config-studio": "^5.0.1",
+    "eslint": "^9.9.0"
+  }
+}
