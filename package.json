@@ -9,7 +9,9 @@
     "typecheck": "turbo run typecheck",
     "studio": "turbo run dev --filter=@atelierschork/studio",
     "studio:build": "turbo run build --filter=@atelierschork/studio",
-    "studio:deploy": "turbo run deploy --filter=@atelierschork/studio"
+    "studio:deploy": "turbo run deploy --filter=@atelierschork/studio",
+    "web": "turbo run dev --filter=@atelierschork/web",
+    "web:build": "turbo run build --filter=@atelierschork/web"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

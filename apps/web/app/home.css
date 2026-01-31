@@ -1,0 +1,90 @@
+.home-container {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3rem, 8vw, 4rem);
+  padding: clamp(2rem, 5vw, 3rem) 0;
+}
+
+.intro-section {
+  max-width: 40rem;
+}
+
+.intro-section h1 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  margin-bottom: clamp(1rem, 3vw, 1.5rem);
+  color: var(--color-text);
+}
+
+.intro-section p {
+  font-size: clamp(1rem, 1.2vw, 1.125rem);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.featured-section h2 {
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-weight: 300;
+  margin-bottom: clamp(1.5rem, 4vw, 2rem);
+  color: var(--color-text);
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: clamp(1rem, 3vw, 2rem);
+}
+
+.project-card {
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.project-image {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background-color: var(--color-background-alt);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.3s ease;
+}
+
+.project-card:hover .project-image {
+  box-shadow: var(--shadow-md);
+}
+
+.image {
+  object-fit: cover;
+}
+
+.project-info {
+  margin-top: 0.75rem;
+}
+
+.project-info h3 {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.project-info p {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  margin-top: 0.25rem;
+}
+
+.view-all {
+  margin-top: clamp(1.5rem, 4vw, 2rem);
+}
+
+.view-all a {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.view-all a:hover {
+  color: var(--color-text);
+}

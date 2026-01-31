@@ -9,7 +9,7 @@ node_modules
 /coverage
 
 # Next.js
-/.next/
+.next
 /out/
 
 # Production
@@ -48,6 +48,11 @@ next-env.d.ts
 # IDE
 .idea
 .vscode
+
+# Claude Code
+.agent
+.agents
+.claude
 
 # Vercel
 .vercel

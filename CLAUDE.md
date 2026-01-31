@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Turborepo monorepo** for Atelierschork.com, an artistic collaboration between Francisco and Markus Schork. The project includes a Sanity Content Studio and will include a frontend in the future.
+This is a **Turborepo monorepo** for Atelierschork.com, an artistic collaboration between Francisco and Markus Schork. The project includes a Sanity Content Studio and a Next.js frontend.
 
 ## Repository Structure
 
@@ -18,7 +18,12 @@ atelierschork/
 │   │   ├── schemaTypes/           # Content schemas
 │   │   ├── migrations/            # Data migrations
 │   │   └── static/                # Static assets
-│   └── web/                       # Frontend (coming soon)
+│   └── web/                       # Next.js Frontend
+│       ├── app/                   # Next.js App Router pages
+│       ├── components/            # React components (shadcn/ui)
+│       ├── lib/                   # Sanity client, queries, types
+│       ├── styles/                # Global styles
+│       └── public/                # Static assets
 ├── packages/
 │   ├── typescript-config/         # Shared TypeScript configs
 │   └── eslint-config/             # Shared ESLint configs
@@ -37,13 +42,15 @@ This project uses **pnpm** (not npm). Install with `npm install -g pnpm` if need
 ### Root-Level Commands (from project root)
 ```bash
 pnpm install              # Install all dependencies
-pnpm studio               # Start Sanity Studio dev server
-pnpm studio:build         # Build Studio for production
-pnpm studio:deploy        # Deploy to Sanity's hosted studio
 pnpm dev                  # Start all apps in dev mode
 pnpm build                # Build all apps
 pnpm lint                 # Lint all packages
 pnpm typecheck            # Type check all packages
+pnpm studio               # Start Sanity Studio dev server (localhost:3333)
+pnpm studio:build         # Build Studio for production
+pnpm studio:deploy        # Deploy to Sanity's hosted studio
+pnpm web                  # Start Next.js dev server (localhost:3000)
+pnpm web:build            # Build Next.js for production
 ```
 
 ### Studio-Specific Commands (from apps/studio)
@@ -52,6 +59,15 @@ pnpm dev                  # Start dev server (localhost:3333)
 pnpm build                # Build production studio
 pnpm deploy               # Deploy to Sanity's hosted studio
 pnpm deploy-graphql       # Deploy GraphQL API
+```
+
+### Web-Specific Commands (from apps/web)
+```bash
+pnpm dev                  # Start dev server (localhost:3000)
+pnpm build                # Build production Next.js app
+pnpm start                # Start production server
+pnpm lint                 # Run ESLint
+pnpm typecheck            # Type check
 ```
 
 ### Migrations (from apps/studio)
@@ -75,6 +91,10 @@ cp .env.local.example .env.local
 Required variables:
 - `SANITY_STUDIO_PROJECT_ID` - Your Sanity project ID
 - `SANITY_STUDIO_DATASET` - Dataset name (e.g., 'production', 'development')
+
+For the web app (`apps/web/.env.local`):
+- `NEXT_PUBLIC_SANITY_PROJECT_ID` - Same Sanity project ID
+- `NEXT_PUBLIC_SANITY_DATASET` - Same dataset name
 
 ## Schema Architecture
 
@@ -322,12 +342,36 @@ Shared TypeScript configurations:
 Shared ESLint configurations:
 - `sanity.mjs` - ESLint config for Sanity Studio
 
-## Adding a New App (Future)
+## Web App Architecture
 
-When adding the frontend (`apps/web`):
-1. Create the app in `apps/web/`
-2. Update `package.json` with name `@atelierschork/web`
-3. Run `pnpm install` to link workspace dependencies
-4. Add relevant scripts to root `package.json` if needed
+The Next.js frontend lives in `apps/web/` (package: `@atelierschork/web`).
+
+**Tech Stack:**
+- Next.js 16 with App Router (React 19)
+- Tailwind CSS with CSS variables for theming
+- shadcn/ui (Radix primitives + Tailwind)
+- Sanity client for data fetching
+
+**Key Directories:**
+- `app/` - Next.js App Router pages (projects, people, about)
+- `components/` - React components including shadcn/ui
+- `lib/` - Sanity client, GROQ queries, TypeScript types
+- `styles/` - Global CSS styles
+
+**Data Fetching:**
+All Sanity queries are centralized in `lib/sanity.queries.ts`. Pages use async Server Components with ISR:
+```tsx
+export const revalidate = 60  // ISR every 60 seconds
+
+export default async function Page() {
+  const data = await getAllProjects()
+  return <div>...</div>
+}
+```
+
+**shadcn/ui:**
+Component configuration in `components.json`. Uses `@/` path alias.
+
+See `apps/web/CLAUDE.md` for more detailed frontend documentation.
 
 Always update this CLAUDE.md file with relevant information after changes to the codebase.
