@@ -511,22 +511,16 @@ export default defineType({
       title: 'title',
       artist0: 'artists.0.firstName',
       artistLast0: 'artists.0.lastName',
-      artistRole0: 'artists.0.roles.0.title',
       media0: 'media.0.image',
-      media0Type: 'media.0.mediaType',
       year: 'year',
     },
     prepare(selection) {
-      const {title, artist0, artistLast0, artistRole0, media0, year} = selection
+      const {title, artist0, artistLast0, media0, year} = selection
       const artistName =
         artist0 && artistLast0
           ? `${artist0} ${artistLast0}`
           : artist0 || artistLast0 || ''
-      const subtitle = [
-        artistName ? `by ${artistName}` : null,
-        year,
-        artistRole0,
-      ]
+      const subtitle = [artistName ? `by ${artistName}` : null, year]
         .filter(Boolean)
         .join(' • ')
 

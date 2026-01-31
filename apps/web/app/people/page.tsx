@@ -1,6 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
-import { getAllArtists } from "@/lib/sanity.queries"
+import { getAllPeople } from "@/lib/sanity.queries"
 import { getImageUrl } from "@/lib/sanity.client"
 import { PortableText } from "@portabletext/react"
 import "./people.css"
@@ -8,7 +8,7 @@ import "./people.css"
 export const revalidate = 60 // Revalidate every 60 seconds
 
 export default async function PeoplePage() {
-  const artists = await getAllArtists()
+  const people = await getAllPeople()
 
   return (
     <div className="container">
@@ -19,37 +19,37 @@ export default async function PeoplePage() {
         </section>
 
         <section className="people-list">
-          {artists.length > 0 ? (
+          {people.length > 0 ? (
             <div className="people-grid">
-              {artists.map((artist) => (
-                <Link href={`/people/${artist.slug.current}`} key={artist._id} className="person-card">
+              {people.map((person) => (
+                <Link href={`/people/${person.slug.current}`} key={person._id} className="person-card">
                   <div className="person-image">
-                    {artist.profileImage ? (
+                    {person.profileImage ? (
                       <Image
-                        src={getImageUrl(artist.profileImage, { width: 600, height: 600 })}
-                        alt={`${artist.firstName} ${artist.lastName}`}
+                        src={getImageUrl(person.profileImage, { width: 600, height: 600 })}
+                        alt={`${person.firstName} ${person.lastName}`}
                         fill
                         className="image"
                       />
                     ) : (
                       <div className="placeholder-image">
-                        {artist.firstName} {artist.lastName}
+                        {person.firstName} {person.lastName}
                       </div>
                     )}
                   </div>
                   <div className="person-info">
                     <h2>
-                      {artist.title && `${artist.title} `}
-                      {artist.firstName} {artist.lastName}
+                      {person.title && `${person.title} `}
+                      {person.firstName} {person.lastName}
                     </h2>
-                    {artist.roles && artist.roles.length > 0 && (
+                    {person.roles && person.roles.length > 0 && (
                       <p className="person-role">
-                        {artist.roles.map((role) => role.title).join(", ")}
+                        {person.roles.map((role) => role.title).join(", ")}
                       </p>
                     )}
-                    {artist.biography && artist.biography.length > 0 && (
+                    {person.biography && person.biography.length > 0 && (
                       <div className="person-bio">
-                        <PortableText value={artist.biography.slice(0, 1)} />
+                        <PortableText value={person.biography.slice(0, 1)} />
                       </div>
                     )}
                   </div>
@@ -58,7 +58,7 @@ export default async function PeoplePage() {
             </div>
           ) : (
             <div className="no-people">
-              <p>No artists available yet. Check back soon!</p>
+              <p>No people available yet. Check back soon!</p>
             </div>
           )}
         </section>

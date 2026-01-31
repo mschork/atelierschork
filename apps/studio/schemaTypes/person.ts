@@ -313,7 +313,7 @@ export default defineType({
   ],
   preview: {
     select: {
-      title: 'title',
+      honorific: 'title',
       firstName: 'firstName',
       middleName: 'middleName',
       lastName: 'lastName',
@@ -322,10 +322,17 @@ export default defineType({
       isCoreArtist: 'isCoreArtist',
     },
     prepare(selection) {
-      const {title, firstName, middleName, lastName, role0, media, isCoreArtist} = selection
+      const {honorific, firstName, middleName, lastName, role0, media, isCoreArtist} = selection
 
-      // Format name as: First M. Last
-      let formattedName = firstName || ''
+      // Format name as: Dr. First M. Last
+      let formattedName = ''
+
+      // Add honorific (Dr., Prof., etc.) if available
+      if (honorific) {
+        formattedName = honorific + ' '
+      }
+
+      formattedName += firstName || ''
 
       // Add middle initial with period if available
       if (middleName && middleName.length > 0) {
@@ -337,10 +344,8 @@ export default defineType({
         formattedName += ` ${lastName}`
       }
 
-      // Add core artist indicator
-      const subtitle = [
-        role0,
-      ]
+      // Build subtitle with role and core artist indicator
+      const subtitle = [role0, isCoreArtist ? '⭐ Core Artist' : null]
         .filter(Boolean)
         .join(' • ')
 

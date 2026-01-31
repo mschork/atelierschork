@@ -222,8 +222,11 @@ const deskStructure: StructureResolver = async (S, context) => {
 **Person vs Artist Schema:**
 The project previously had separate `artist` and `person` schemas but consolidated to a single `person` schema with role references. Migration files exist in `apps/studio/migrations/` to handle this transition.
 
-**Legacy Fields:**
-- `medium` schema still exists but is deprecated in favor of `mediaType`
+**Legacy Schemas:**
+- `medium` schema is **deprecated** - use `mediaType` instead
+  - Schema file has `deprecated` metadata and "(Deprecated)" in title
+  - Hidden from desk structure but kept for data compatibility
+  - See `apps/studio/schemaTypes/medium.ts` for migration instructions
 - Comments in schema files indicate migration paths
 - Check `/documentation/atelierschork-contentmodel/` for the original content model specification
 
@@ -274,17 +277,31 @@ validation: (Rule) => Rule.custom((endYear, context) => {
 - `select` - Fields to extract for preview
 - `prepare` - Function to format preview display
 
+**Important:** Only select fields that are actually used in `prepare()` to avoid unused variable warnings.
+
 Common pattern for person names:
 ```typescript
 prepare(selection) {
-  const {firstName, middleName, lastName} = selection
-  let formattedName = firstName || ''
+  const {honorific, firstName, middleName, lastName, role0, media, isCoreArtist} = selection
+
+  // Format name as: Dr. First M. Last
+  let formattedName = ''
+  if (honorific) {
+    formattedName = honorific + ' '
+  }
+  formattedName += firstName || ''
   if (middleName && middleName.length > 0) {
     formattedName += ` ${middleName.charAt(0)}.`
   }
   if (lastName) {
     formattedName += ` ${lastName}`
   }
+
+  // Build subtitle with role and core artist indicator
+  const subtitle = [role0, isCoreArtist ? '⭐ Core Artist' : null]
+    .filter(Boolean)
+    .join(' • ')
+
   return {title: formattedName.trim(), subtitle, media}
 }
 ```
@@ -368,6 +385,17 @@ export default async function Page() {
   return <div>...</div>
 }
 ```
+
+Queries include error handling with `SanityFetchError` class and development logging.
+
+**Error Handling:**
+Each route segment has `error.tsx` and `loading.tsx` files for graceful error recovery and loading states. Reusable components in `components/error-fallback.tsx` and `components/loading-spinner.tsx`.
+
+**SEO:**
+Dynamic routes use `generateMetadata` for proper Open Graph and Twitter card metadata.
+
+**Accessibility:**
+Navigation includes keyboard support (Escape key), focus management, and proper ARIA attributes.
 
 **shadcn/ui:**
 Component configuration in `components.json`. Uses `@/` path alias.

@@ -7,8 +7,6 @@
 
 import { sanityClient } from './sanity.client'
 import type {
-  Artist,
-  ArtistExpanded,
   Person,
   PersonExpanded,
   Artwork,
@@ -31,13 +29,59 @@ import type {
 } from './sanity.types'
 
 // ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+class SanityFetchError extends Error {
+  constructor(
+    message: string,
+    public readonly query: string,
+    public readonly cause?: unknown
+  ) {
+    super(message)
+    this.name = 'SanityFetchError'
+  }
+}
+
+type QueryParams = Record<string, string | number | boolean | string[] | null>
+
+/**
+ * Wrapper for Sanity fetches with consistent error handling
+ */
+async function fetchWithErrorHandling<T>(
+  query: string,
+  params: QueryParams | undefined,
+  context?: string
+): Promise<T> {
+  try {
+    if (params) {
+      return await sanityClient.fetch<T>(query, params)
+    }
+    return await sanityClient.fetch<T>(query)
+  } catch (error) {
+    const message = context
+      ? `Failed to fetch ${context}`
+      : 'Failed to fetch data from Sanity'
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[Sanity] ${message}:`, error)
+      console.error('[Sanity] Query:', query)
+      if (params) console.error('[Sanity] Params:', params)
+    }
+
+    throw new SanityFetchError(message, query, error)
+  }
+}
+
+// ============================================================================
 // GROQ QUERY FRAGMENTS
 // ============================================================================
 
 /**
- * Common projection for artist with expanded roles
+ * Common projection for person with expanded roles
+ * Matches the person schema in apps/studio/schemaTypes/person.ts
  */
-const artistProjection = `
+const personProjection = `
   _id,
   _type,
   _createdAt,
@@ -48,39 +92,21 @@ const artistProjection = `
   lastName,
   slug,
   "roles": roles[]->{ _id, title, description },
-  profileImage,
-  birthDate,
-  birthPlace,
-  nationality,
+  "profileImage": portrait,
+  isCoreArtist,
+  isActive,
   biography,
+  statement,
+  birthYear,
+  birthPlace,
+  currentLocation,
+  interests,
   education,
-  exhibitions,
-  cvFile,
-  website,
+  "cvFile": cv,
+  personalProjects,
   email,
   phone,
-  socialMedia,
-  interests,
-  nonArtisticWork
-`
-
-/**
- * Common projection for person with expanded roles
- */
-const personProjection = `
-  _id,
-  _type,
-  _createdAt,
-  _updatedAt,
-  firstName,
-  middleName,
-  lastName,
-  slug,
-  "roles": roles[]->{ _id, title, description },
-  profileImage,
-  biography,
   website,
-  email,
   socialMedia
 `
 
@@ -104,7 +130,7 @@ const artworkProjection = `
   },
   year,
   creationDate,
-  "medium": medium->{ _id, title, description },
+  "mediaTypes": mediaType[]->{ _id, title, description },
   "techniques": techniques[]->{ _id, title, description },
   "tags": tags[]->{ _id, title, slug },
   description,
@@ -200,23 +226,23 @@ const exhibitionProjection = `
 `
 
 // ============================================================================
-// ARTIST QUERIES
+// PERSON QUERIES
 // ============================================================================
 
 /**
- * Get all artists with expanded roles
+ * Get all people with expanded roles
  */
-export async function getAllArtists(): Promise<ArtistExpanded[]> {
-  const query = `*[_type == "artist"] | order(lastName asc) { ${artistProjection} }`
-  return await sanityClient.fetch(query)
+export async function getAllPeople(): Promise<PersonExpanded[]> {
+  const query = `*[_type == "person"] | order(lastName asc) { ${personProjection} }`
+  return await fetchWithErrorHandling<PersonExpanded[]>(query, undefined, 'people')
 }
 
 /**
- * Get artist by slug with expanded data
+ * Get person by slug with expanded data including artworks, projects, and exhibitions
  */
-export async function getArtistBySlug(slug: string): Promise<ArtistExpanded | null> {
-  const query = `*[_type == "artist" && slug.current == $slug][0] {
-    ${artistProjection},
+export async function getPersonBySlug(slug: string): Promise<PersonExpanded | null> {
+  const query = `*[_type == "person" && slug.current == $slug][0] {
+    ${personProjection},
     "artworks": *[_type == "artwork" && references(^._id)] | order(year desc) {
       ${artworkProjection}
     },
@@ -227,28 +253,18 @@ export async function getArtistBySlug(slug: string): Promise<ArtistExpanded | nu
       ${exhibitionProjection}
     }
   }`
-  return await sanityClient.fetch(query, { slug })
-}
-
-// ============================================================================
-// PERSON QUERIES
-// ============================================================================
-
-/**
- * Get all people with expanded roles
- */
-export async function getAllPeople(): Promise<PersonExpanded[]> {
-  const query = `*[_type == "person"] | order(lastName asc) { ${personProjection} }`
-  return await sanityClient.fetch(query)
+  return await fetchWithErrorHandling<PersonExpanded | null>(query, { slug }, `person: ${slug}`)
 }
 
 /**
- * Get person by slug with expanded data
+ * @deprecated Use getAllPeople instead - kept for backwards compatibility
  */
-export async function getPersonBySlug(slug: string): Promise<PersonExpanded | null> {
-  const query = `*[_type == "person" && slug.current == $slug][0] { ${personProjection} }`
-  return await sanityClient.fetch(query, { slug })
-}
+export const getAllArtists = getAllPeople
+
+/**
+ * @deprecated Use getPersonBySlug instead - kept for backwards compatibility
+ */
+export const getArtistBySlug = getPersonBySlug
 
 // ============================================================================
 // ARTWORK QUERIES
@@ -263,7 +279,7 @@ export async function getAllArtworks(params?: {
 }): Promise<ArtworkExpanded[]> {
   const { limit = 100, offset = 0 } = params || {}
   const query = `*[_type == "artwork"] | order(year desc, orderRank asc) [$offset...$limit] { ${artworkProjection} }`
-  return await sanityClient.fetch(query, { offset, limit: offset + limit })
+  return await fetchWithErrorHandling<ArtworkExpanded[]>(query, { offset, limit: offset + limit }, 'artworks')
 }
 
 /**
@@ -271,7 +287,7 @@ export async function getAllArtworks(params?: {
  */
 export async function getFeaturedArtworks(limit: number = 6): Promise<ArtworkExpanded[]> {
   const query = `*[_type == "artwork" && isFeatured == true] | order(orderRank asc) [0...$limit] { ${artworkProjection} }`
-  return await sanityClient.fetch(query, { limit })
+  return await fetchWithErrorHandling<ArtworkExpanded[]>(query, { limit }, 'featured artworks')
 }
 
 /**
@@ -279,16 +295,21 @@ export async function getFeaturedArtworks(limit: number = 6): Promise<ArtworkExp
  */
 export async function getArtworkBySlug(slug: string): Promise<ArtworkExpanded | null> {
   const query = `*[_type == "artwork" && slug.current == $slug][0] { ${artworkProjection} }`
-  return await sanityClient.fetch(query, { slug })
+  return await fetchWithErrorHandling<ArtworkExpanded | null>(query, { slug }, `artwork: ${slug}`)
 }
 
 /**
- * Get artworks by artist slug
+ * Get artworks by person slug
  */
-export async function getArtworksByArtist(artistSlug: string): Promise<ArtworkExpanded[]> {
-  const query = `*[_type == "artwork" && references(*[_type == "artist" && slug.current == $artistSlug]._id)] | order(year desc) { ${artworkProjection} }`
-  return await sanityClient.fetch(query, { artistSlug })
+export async function getArtworksByPerson(personSlug: string): Promise<ArtworkExpanded[]> {
+  const query = `*[_type == "artwork" && references(*[_type == "person" && slug.current == $personSlug]._id)] | order(year desc) { ${artworkProjection} }`
+  return await fetchWithErrorHandling<ArtworkExpanded[]>(query, { personSlug }, `artworks by person: ${personSlug}`)
 }
+
+/**
+ * @deprecated Use getArtworksByPerson instead
+ */
+export const getArtworksByArtist = getArtworksByPerson
 
 /**
  * Get artworks by project slug
@@ -323,7 +344,7 @@ export async function getArtworksByTag(tagSlug: string): Promise<ArtworkExpanded
  */
 export async function getAllProjects(): Promise<ProjectExpanded[]> {
   const query = `*[_type == "project"] | order(startDate desc) { ${projectProjection} }`
-  return await sanityClient.fetch(query)
+  return await fetchWithErrorHandling<ProjectExpanded[]>(query, undefined, 'projects')
 }
 
 /**
@@ -331,7 +352,7 @@ export async function getAllProjects(): Promise<ProjectExpanded[]> {
  */
 export async function getFeaturedProjects(limit: number = 3): Promise<ProjectExpanded[]> {
   const query = `*[_type == "project" && isFeatured == true] | order(orderRank asc) [0...$limit] { ${projectProjection} }`
-  return await sanityClient.fetch(query, { limit })
+  return await fetchWithErrorHandling<ProjectExpanded[]>(query, { limit }, 'featured projects')
 }
 
 /**
@@ -344,7 +365,7 @@ export async function getProjectBySlug(slug: string): Promise<ProjectExpanded | 
       ${artworkProjection}
     }
   }`
-  return await sanityClient.fetch(query, { slug })
+  return await fetchWithErrorHandling<ProjectExpanded | null>(query, { slug }, `project: ${slug}`)
 }
 
 /**
@@ -354,7 +375,7 @@ export async function getProjectsByStatus(
   status: 'planning' | 'inProgress' | 'completed' | 'archived'
 ): Promise<ProjectExpanded[]> {
   const query = `*[_type == "project" && status == $status] | order(startDate desc) { ${projectProjection} }`
-  return await sanityClient.fetch(query, { status })
+  return await fetchWithErrorHandling<ProjectExpanded[]>(query, { status }, `projects with status: ${status}`)
 }
 
 // ============================================================================
@@ -366,7 +387,7 @@ export async function getProjectsByStatus(
  */
 export async function getAllExhibitions(): Promise<ExhibitionExpanded[]> {
   const query = `*[_type == "exhibition"] | order(startDate desc) { ${exhibitionProjection} }`
-  return await sanityClient.fetch(query)
+  return await fetchWithErrorHandling<ExhibitionExpanded[]>(query, undefined, 'exhibitions')
 }
 
 /**
@@ -374,7 +395,7 @@ export async function getAllExhibitions(): Promise<ExhibitionExpanded[]> {
  */
 export async function getUpcomingExhibitions(): Promise<ExhibitionExpanded[]> {
   const query = `*[_type == "exhibition" && status == "upcoming"] | order(startDate asc) { ${exhibitionProjection} }`
-  return await sanityClient.fetch(query)
+  return await fetchWithErrorHandling<ExhibitionExpanded[]>(query, undefined, 'upcoming exhibitions')
 }
 
 /**
@@ -382,7 +403,7 @@ export async function getUpcomingExhibitions(): Promise<ExhibitionExpanded[]> {
  */
 export async function getCurrentExhibitions(): Promise<ExhibitionExpanded[]> {
   const query = `*[_type == "exhibition" && status == "current"] | order(startDate desc) { ${exhibitionProjection} }`
-  return await sanityClient.fetch(query)
+  return await fetchWithErrorHandling<ExhibitionExpanded[]>(query, undefined, 'current exhibitions')
 }
 
 /**
@@ -390,7 +411,7 @@ export async function getCurrentExhibitions(): Promise<ExhibitionExpanded[]> {
  */
 export async function getPastExhibitions(limit: number = 20): Promise<ExhibitionExpanded[]> {
   const query = `*[_type == "exhibition" && status == "past"] | order(startDate desc) [0...$limit] { ${exhibitionProjection} }`
-  return await sanityClient.fetch(query, { limit })
+  return await fetchWithErrorHandling<ExhibitionExpanded[]>(query, { limit }, 'past exhibitions')
 }
 
 /**
@@ -398,7 +419,7 @@ export async function getPastExhibitions(limit: number = 20): Promise<Exhibition
  */
 export async function getExhibitionBySlug(slug: string): Promise<ExhibitionExpanded | null> {
   const query = `*[_type == "exhibition" && slug.current == $slug][0] { ${exhibitionProjection} }`
-  return await sanityClient.fetch(query, { slug })
+  return await fetchWithErrorHandling<ExhibitionExpanded | null>(query, { slug }, `exhibition: ${slug}`)
 }
 
 // ============================================================================
@@ -431,10 +452,10 @@ export async function getAllAwards(): Promise<AwardExpanded[]> {
 }
 
 /**
- * Get awards by artist or person slug
+ * Get awards by person slug
  */
 export async function getAwardsByProfile(slug: string): Promise<AwardExpanded[]> {
-  const query = `*[_type == "award" && references(*[(_type == "artist" || _type == "person") && slug.current == $slug]._id)] | order(year desc) {
+  const query = `*[_type == "award" && references(*[_type == "person" && slug.current == $slug]._id)] | order(year desc) {
     _id,
     title,
     slug,
@@ -573,7 +594,7 @@ export async function getRootCategories(): Promise<CategoryExpanded[]> {
  */
 export async function getSiteSettings(): Promise<SiteSettings | null> {
   const query = `*[_type == "siteSettings"][0]`
-  return await sanityClient.fetch(query)
+  return await fetchWithErrorHandling<SiteSettings | null>(query, undefined, 'site settings')
 }
 
 // ============================================================================
@@ -586,20 +607,24 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
 export async function searchContent(searchTerm: string): Promise<{
   artworks: ArtworkExpanded[]
   projects: ProjectExpanded[]
-  artists: ArtistExpanded[]
   people: PersonExpanded[]
 }> {
   const artworksQuery = `*[_type == "artwork" && (title match $searchTerm || pt::text(description) match $searchTerm)] | order(year desc) [0...10] { ${artworkProjection} }`
   const projectsQuery = `*[_type == "project" && (title match $searchTerm || pt::text(description) match $searchTerm)] | order(startDate desc) [0...10] { ${projectProjection} }`
-  const artistsQuery = `*[_type == "artist" && (firstName match $searchTerm || lastName match $searchTerm || pt::text(biography) match $searchTerm)] | order(lastName asc) [0...10] { ${artistProjection} }`
   const peopleQuery = `*[_type == "person" && (firstName match $searchTerm || lastName match $searchTerm || pt::text(biography) match $searchTerm)] | order(lastName asc) [0...10] { ${personProjection} }`
 
-  const [artworks, projects, artists, people] = await Promise.all([
-    sanityClient.fetch(artworksQuery, { searchTerm: `*${searchTerm}*` }),
-    sanityClient.fetch(projectsQuery, { searchTerm: `*${searchTerm}*` }),
-    sanityClient.fetch(artistsQuery, { searchTerm: `*${searchTerm}*` }),
-    sanityClient.fetch(peopleQuery, { searchTerm: `*${searchTerm}*` }),
-  ])
+  try {
+    const [artworks, projects, people] = await Promise.all([
+      fetchWithErrorHandling<ArtworkExpanded[]>(artworksQuery, { searchTerm: `*${searchTerm}*` }, 'search artworks'),
+      fetchWithErrorHandling<ProjectExpanded[]>(projectsQuery, { searchTerm: `*${searchTerm}*` }, 'search projects'),
+      fetchWithErrorHandling<PersonExpanded[]>(peopleQuery, { searchTerm: `*${searchTerm}*` }, 'search people'),
+    ])
 
-  return { artworks, projects, artists, people }
+    return { artworks, projects, people }
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Sanity] Search failed:', error)
+    }
+    throw error
+  }
 }

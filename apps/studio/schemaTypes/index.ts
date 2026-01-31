@@ -12,7 +12,7 @@ import locationType from './locationType'
 
 // Taxonomies
 import mediaType from './mediaType'
-import medium from './medium' // Legacy - to be migrated to mediaType
+import medium from './medium' // @deprecated - use mediaType instead, kept for data migration
 import technique from './technique'
 import tag from './tag'
 import category from './category'

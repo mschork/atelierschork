@@ -2,27 +2,82 @@ import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { notFound } from "next/navigation"
-import { getArtistBySlug, getAllArtists } from "@/lib/sanity.queries"
+import type { Metadata } from "next"
+import { getPersonBySlug, getAllPeople } from "@/lib/sanity.queries"
 import { getImageUrl, getFileUrl } from "@/lib/sanity.client"
 import { PortableText } from "@portabletext/react"
-import { isImageMedia } from "@/lib/sanity.types"
+import { isImageMedia, PortableTextBlock } from "@/lib/sanity.types"
 import "./person-detail.css"
 
 export const revalidate = 60 // Revalidate every 60 seconds
 
-// Generate static params for all artists
+// Generate static params for all people
 export async function generateStaticParams() {
-  const artists = await getAllArtists()
-  return artists.map((artist) => ({
-    id: artist.slug.current,
+  const people = await getAllPeople()
+  return people.map((person) => ({
+    id: person.slug.current,
   }))
+}
+
+// Helper to extract plain text from portable text
+function portableTextToPlainText(blocks?: PortableTextBlock[]): string {
+  if (!blocks) return ""
+  return blocks
+    .map((block) =>
+      block.children?.map((child) => child.text).join("") ?? ""
+    )
+    .join(" ")
+    .slice(0, 160)
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const person = await getPersonBySlug(id)
+
+  if (!person) {
+    return {
+      title: "Profile Not Found",
+    }
+  }
+
+  const fullName = [person.title, person.firstName, person.middleName, person.lastName]
+    .filter(Boolean)
+    .join(" ")
+
+  const roleText = person.roles?.map((role) => role.title).join(", ")
+  const description = portableTextToPlainText(person.biography) ||
+    `${fullName}${roleText ? ` - ${roleText}` : ""} at Atelierschork`
+
+  const imageUrl = person.profileImage
+    ? getImageUrl(person.profileImage, { width: 1200, height: 630 })
+    : undefined
+
+  return {
+    title: `${fullName} | Atelierschork`,
+    description,
+    openGraph: {
+      title: fullName,
+      description,
+      type: "profile",
+      ...(imageUrl && { images: [{ url: imageUrl, width: 1200, height: 630 }] }),
+    },
+    twitter: {
+      card: imageUrl ? "summary_large_image" : "summary",
+      title: fullName,
+      description,
+    },
+  }
 }
 
 export default async function PersonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const artist = await getArtistBySlug(id)
+  const person = await getPersonBySlug(id)
 
-  if (!artist) {
+  if (!person) {
     notFound()
   }
 
@@ -37,17 +92,17 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
         <section className="person-main">
           <div className="person-image-main">
             <div className="image-container">
-              {artist.profileImage ? (
+              {person.profileImage ? (
                 <Image
-                  src={getImageUrl(artist.profileImage, { width: 800, height: 800 })}
-                  alt={`${artist.firstName} ${artist.lastName}`}
+                  src={getImageUrl(person.profileImage, { width: 800, height: 800 })}
+                  alt={`${person.firstName} ${person.lastName}`}
                   fill
                   className="image"
                   priority
                 />
               ) : (
                 <div className="placeholder-image">
-                  {artist.firstName} {artist.lastName}
+                  {person.firstName} {person.lastName}
                 </div>
               )}
             </div>
@@ -56,110 +111,108 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           <div className="person-info">
             <div className="person-header">
               <h1>
-                {artist.title && `${artist.title} `}
-                {artist.firstName} {artist.middleName && `${artist.middleName} `}
-                {artist.lastName}
+                {person.title && `${person.title} `}
+                {person.firstName} {person.middleName && `${person.middleName} `}
+                {person.lastName}
               </h1>
-              {artist.roles && artist.roles.length > 0 && (
+              {person.roles && person.roles.length > 0 && (
                 <p className="person-role">
-                  {artist.roles.map((role) => role.title).join(", ")}
+                  {person.roles.map((role) => role.title).join(", ")}
                 </p>
               )}
-              {(artist.birthDate || artist.birthPlace || artist.nationality) && (
+              {(person.birthYear || person.birthPlace || person.currentLocation) && (
                 <div className="person-meta">
-                  {artist.birthDate && <p>Born: {new Date(artist.birthDate).getFullYear()}</p>}
-                  {artist.birthPlace && <p>Birthplace: {artist.birthPlace}</p>}
-                  {artist.nationality && <p>Nationality: {artist.nationality}</p>}
+                  {person.birthYear && <p>Born: {person.birthYear}</p>}
+                  {person.birthPlace && <p>Birthplace: {person.birthPlace}</p>}
+                  {person.currentLocation && <p>Based in: {person.currentLocation}</p>}
                 </div>
               )}
             </div>
 
-            {artist.biography && (
+            {person.biography && (
               <div className="person-bio">
-                <PortableText value={artist.biography} />
+                <PortableText value={person.biography} />
               </div>
             )}
 
-            {artist.education && (
+            {person.statement && (
+              <div className="person-details">
+                <div className="person-statement">
+                  <h2>Artist Statement</h2>
+                  <PortableText value={person.statement} />
+                </div>
+              </div>
+            )}
+
+            {person.education && person.education.length > 0 && (
               <div className="person-details">
                 <div className="person-education">
                   <h2>Education</h2>
-                  <PortableText value={artist.education} />
+                  <ul>
+                    {person.education.map((edu, index) => (
+                      <li key={index}>
+                        {edu.degree} — {edu.institution}
+                        {edu.year && ` (${edu.year})`}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             )}
 
-            {artist.exhibitions && (
-              <div className="person-details">
-                <div className="person-exhibitions">
-                  <h2>Selected Exhibitions</h2>
-                  <PortableText value={artist.exhibitions} />
-                </div>
-              </div>
-            )}
-
-            {artist.interests && (
+            {person.interests && person.interests.length > 0 && (
               <div className="person-details">
                 <div className="person-interests">
                   <h2>Interests</h2>
-                  <PortableText value={artist.interests} />
-                </div>
-              </div>
-            )}
-
-            {artist.nonArtisticWork && (
-              <div className="person-details">
-                <div className="person-other-work">
-                  <h2>Other Work</h2>
-                  <PortableText value={artist.nonArtisticWork} />
+                  <p>{person.interests.join(", ")}</p>
                 </div>
               </div>
             )}
 
             <div className="person-contact">
-              {artist.website && (
+              {person.website && (
                 <p>
-                  <a href={artist.website} target="_blank" rel="noopener noreferrer">
+                  <a href={person.website} target="_blank" rel="noopener noreferrer">
                     Website →
                   </a>
                 </p>
               )}
-              {artist.email && (
+              {person.email && (
                 <p>
-                  <a href={`mailto:${artist.email}`}>Email</a>
+                  <a href={`mailto:${person.email}`}>Email</a>
                 </p>
               )}
-              {artist.socialMedia?.instagram && (
+              {person.socialMedia?.instagram && (
                 <p>
-                  <a href={artist.socialMedia.instagram} target="_blank" rel="noopener noreferrer">
+                  <a href={person.socialMedia.instagram} target="_blank" rel="noopener noreferrer">
                     Instagram →
                   </a>
                 </p>
               )}
-              {artist.socialMedia?.vimeo && (
+              {person.socialMedia?.vimeo && (
                 <p>
-                  <a href={artist.socialMedia.vimeo} target="_blank" rel="noopener noreferrer">
+                  <a href={person.socialMedia.vimeo} target="_blank" rel="noopener noreferrer">
                     Vimeo →
                   </a>
                 </p>
               )}
-              {artist.socialMedia?.facebook && (
+              {person.socialMedia?.facebook && (
                 <p>
-                  <a href={artist.socialMedia.facebook} target="_blank" rel="noopener noreferrer">
+                  <a href={person.socialMedia.facebook} target="_blank" rel="noopener noreferrer">
                     Facebook →
                   </a>
                 </p>
               )}
-              {artist.socialMedia?.twitter && (
+              {person.socialMedia?.twitter && (
                 <p>
-                  <a href={artist.socialMedia.twitter} target="_blank" rel="noopener noreferrer">
+                  <a href={person.socialMedia.twitter} target="_blank" rel="noopener noreferrer">
                     Twitter →
                   </a>
                 </p>
               )}
-              {artist.cvFile && (
+              {person.cvFile && (
                 <p>
-                  <a href={getFileUrl(artist.cvFile)} download>
+                  <a href={getFileUrl(person.cvFile)} download>
                     Download CV
                   </a>
                 </p>
@@ -168,11 +221,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           </div>
         </section>
 
-        {artist.artworks && artist.artworks.length > 0 && (
+        {person.artworks && person.artworks.length > 0 && (
           <section className="person-artworks">
             <h2>Selected Artworks</h2>
             <div className="artworks-grid">
-              {artist.artworks.slice(0, 6).map((artwork) => (
+              {person.artworks.slice(0, 6).map((artwork) => (
                 <Link
                   href={`/artworks/${artwork.slug.current}`}
                   key={artwork._id}
@@ -200,11 +253,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           </section>
         )}
 
-        {artist.projects && artist.projects.length > 0 && (
+        {person.projects && person.projects.length > 0 && (
           <section className="person-projects">
             <h2>Selected Projects</h2>
             <div className="projects-grid">
-              {artist.projects.map((project) => (
+              {person.projects.map((project) => (
                 <Link href={`/projects/${project.slug.current}`} key={project._id} className="project-card">
                   <div className="project-image">
                     {project.coverImage ? (
@@ -230,11 +283,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           </section>
         )}
 
-        {artist.exhibitionDocs && artist.exhibitionDocs.length > 0 && (
+        {person.exhibitionDocs && person.exhibitionDocs.length > 0 && (
           <section className="person-exhibitions-list">
             <h2>Exhibitions</h2>
             <div className="exhibitions-grid">
-              {artist.exhibitionDocs.map((exhibition) => (
+              {person.exhibitionDocs.map((exhibition) => (
                 <Link
                   href={`/exhibitions/${exhibition.slug.current}`}
                   key={exhibition._id}

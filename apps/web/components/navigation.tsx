@@ -2,28 +2,52 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Menu, X } from "lucide-react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import "./navigation.css"
 
 export default function Navigation() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const mobileNavRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleScroll = () => {
-      const isScrolled = window.scrollY > 10
-      if (isScrolled !== scrolled) {
-        setScrolled(isScrolled)
-      }
+      setScrolled(window.scrollY > 10)
     }
 
-    window.addEventListener("scroll", handleScroll)
+    window.addEventListener("scroll", handleScroll, { passive: true })
     return () => {
       window.removeEventListener("scroll", handleScroll)
     }
-  }, [scrolled])
+  }, [])
+
+  // Close menu on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && mobileMenuOpen) {
+        setMobileMenuOpen(false)
+        menuButtonRef.current?.focus()
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [mobileMenuOpen])
+
+  // Focus first menu item when menu opens
+  useEffect(() => {
+    if (mobileMenuOpen && mobileNavRef.current) {
+      const firstLink = mobileNavRef.current.querySelector("a")
+      firstLink?.focus()
+    }
+  }, [mobileMenuOpen])
+
+  const toggleMenu = useCallback(() => {
+    setMobileMenuOpen((prev) => !prev)
+  }, [])
 
   const navItems = [
     { name: "Projects", href: "/projects" },
@@ -50,17 +74,25 @@ export default function Navigation() {
 
           {/* Mobile menu button */}
           <button
+            ref={menuButtonRef}
             className="mobile-menu-button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
+            onClick={toggleMenu}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-navigation"
           >
-            <Menu className="menu-icon" />
+            {mobileMenuOpen ? <X className="menu-icon" /> : <Menu className="menu-icon" />}
           </button>
         </div>
 
         {/* Mobile navigation */}
         {mobileMenuOpen && (
-          <nav className="mobile-nav">
+          <nav
+            id="mobile-navigation"
+            className="mobile-nav"
+            ref={mobileNavRef}
+            aria-label="Mobile navigation"
+          >
             <div className="mobile-nav-inner">
               {navItems.map((item) => (
                 <Link

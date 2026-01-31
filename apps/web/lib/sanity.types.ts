@@ -148,11 +148,11 @@ export interface GalleryItem {
 // ============================================================================
 
 /**
- * Artist - Full artist profiles with comprehensive information
- * 22 fields total
+ * Person - Artist/collaborator profiles
+ * Matches the person schema in apps/studio/schemaTypes/person.ts
  */
-export interface Artist extends SanityDocument {
-  _type: 'artist'
+export interface Person extends SanityDocument {
+  _type: 'person'
   title?: string
   firstName: string
   middleName?: string
@@ -163,49 +163,45 @@ export interface Artist extends SanityDocument {
     _type: 'image'
     asset: Reference
   }
-  birthDate?: string
-  birthPlace?: string
-  nationality?: string
+  isCoreArtist?: boolean
+  isActive?: boolean
   biography?: PortableTextBlock[]
-  education?: PortableTextBlock[]
-  exhibitions?: PortableTextBlock[]
+  statement?: PortableTextBlock[]
+  birthYear?: number
+  birthPlace?: string
+  currentLocation?: string
+  interests?: string[]
+  education?: Array<{
+    degree: string
+    institution: string
+    year?: number
+  }>
   cvFile?: {
     _type: 'file'
     asset: Reference
   }
-  website?: string
+  personalProjects?: Array<{
+    title: string
+    description?: string
+    year?: number
+    url?: string
+  }>
   email?: string
   phone?: string
+  website?: string
   socialMedia?: {
     instagram?: string
     vimeo?: string
     facebook?: string
     twitter?: string
+    other?: string
   }
-  interests?: PortableTextBlock[]
-  nonArtisticWork?: PortableTextBlock[]
 }
 
 /**
- * Person - Simplified profiles for collaborators, curators, recipients
- * 11 fields total
+ * @deprecated Use Person instead - kept for backwards compatibility
  */
-export interface Person extends SanityDocument {
-  _type: 'person'
-  firstName: string
-  middleName?: string
-  lastName: string
-  slug: Slug
-  roles?: Reference[]
-  profileImage?: {
-    _type: 'image'
-    asset: Reference
-  }
-  biography?: PortableTextBlock[]
-  website?: string
-  email?: string
-  socialMedia?: SocialMediaLink[]
-}
+export type Artist = Person
 
 /**
  * Artwork - Individual art pieces with rich metadata
@@ -431,7 +427,6 @@ export interface SiteSettings extends SanityDocument {
 // ============================================================================
 
 export type SanityDocumentType =
-  | Artist
   | Person
   | Artwork
   | Project
@@ -449,7 +444,7 @@ export type SanityDocumentType =
 
 export type TaxonomyType = Role | Medium | Technique | Tag | Category | LocationType | MediaType
 
-export type ProfileType = Artist | Person
+export type ProfileType = Person
 
 export type ContentType = Artwork | Project | Exhibition | Award
 
@@ -458,12 +453,11 @@ export type ContentType = Artwork | Project | Exhibition | Award
 // ============================================================================
 
 /**
- * Expanded Artist type with populated references
+ * Expanded Person type with populated references
  * Note: artworks, projects, and exhibitionDocs are fetched via reverse references
- * in getArtistBySlug query. The base 'exhibitions' field is PortableText for
- * the "Selected Exhibitions" text content.
+ * in getPersonBySlug query.
  */
-export interface ArtistExpanded extends Omit<Artist, 'roles'> {
+export interface PersonExpanded extends Omit<Person, 'roles'> {
   roles?: Role[]
   artworks?: ArtworkExpanded[]
   projects?: ProjectExpanded[]
@@ -471,18 +465,16 @@ export interface ArtistExpanded extends Omit<Artist, 'roles'> {
 }
 
 /**
- * Expanded Person type with populated references
+ * @deprecated Use PersonExpanded instead - kept for backwards compatibility
  */
-export interface PersonExpanded extends Omit<Person, 'roles'> {
-  roles?: Role[]
-}
+export type ArtistExpanded = PersonExpanded
 
 /**
  * Expanded Artwork type with populated references
  */
 export interface ArtworkExpanded extends Omit<Artwork, 'artists' | 'medium' | 'techniques' | 'tags' | 'project' | 'relatedArtworks'> {
-  artists?: (Artist | Person)[]
-  medium?: Medium
+  artists?: Person[]
+  mediaTypes?: MediaType[]
   techniques?: Technique[]
   tags?: Tag[]
   project?: Project
@@ -494,7 +486,7 @@ export interface ArtworkExpanded extends Omit<Artwork, 'artists' | 'medium' | 't
  * Note: artworks is fetched via reverse reference in getProjectBySlug query
  */
 export interface ProjectExpanded extends Omit<Project, 'creators' | 'collaborators' | 'tags'> {
-  creators?: (Artist | Person)[]
+  creators?: Person[]
   collaborators?: Person[]
   tags?: Tag[]
   artworkCount?: number
@@ -515,7 +507,7 @@ export interface ExhibitionExpanded extends Omit<Exhibition, 'curators' | 'locat
  * Expanded Award type with populated references
  */
 export interface AwardExpanded extends Omit<Award, 'recipients' | 'artwork'> {
-  recipients?: (Artist | Person)[]
+  recipients?: Person[]
   artwork?: Artwork
 }
 
@@ -537,13 +529,14 @@ export interface CategoryExpanded extends Omit<Category, 'parent'> {
 // HELPER TYPE GUARDS
 // ============================================================================
 
-export function isArtist(doc: SanityDocumentType): doc is Artist {
-  return doc._type === 'artist'
-}
-
 export function isPerson(doc: SanityDocumentType): doc is Person {
   return doc._type === 'person'
 }
+
+/**
+ * @deprecated Use isPerson instead - artist type no longer exists
+ */
+export const isArtist = isPerson
 
 export function isArtwork(doc: SanityDocumentType): doc is Artwork {
   return doc._type === 'artwork'

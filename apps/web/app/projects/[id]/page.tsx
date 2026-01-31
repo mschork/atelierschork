@@ -2,10 +2,11 @@ import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { notFound } from "next/navigation"
+import type { Metadata } from "next"
 import { getProjectBySlug, getAllProjects } from "@/lib/sanity.queries"
 import { getImageUrl } from "@/lib/sanity.client"
 import { PortableText } from "@portabletext/react"
-import { isImageMedia } from "@/lib/sanity.types"
+import { isImageMedia, PortableTextBlock } from "@/lib/sanity.types"
 import "./project-detail.css"
 
 export const revalidate = 60 // Revalidate every 60 seconds
@@ -16,6 +17,53 @@ export async function generateStaticParams() {
   return projects.map((project) => ({
     id: project.slug.current,
   }))
+}
+
+// Helper to extract plain text from portable text
+function portableTextToPlainText(blocks?: PortableTextBlock[]): string {
+  if (!blocks) return ""
+  return blocks
+    .map((block) =>
+      block.children?.map((child) => child.text).join("") ?? ""
+    )
+    .join(" ")
+    .slice(0, 160)
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const project = await getProjectBySlug(id)
+
+  if (!project) {
+    return {
+      title: "Project Not Found",
+    }
+  }
+
+  const description = portableTextToPlainText(project.description) || `${project.title} - A project by Atelierschork`
+  const imageUrl = project.coverImage
+    ? getImageUrl(project.coverImage, { width: 1200, height: 630 })
+    : undefined
+
+  return {
+    title: `${project.title} | Atelierschork`,
+    description,
+    openGraph: {
+      title: project.title,
+      description,
+      type: "article",
+      ...(imageUrl && { images: [{ url: imageUrl, width: 1200, height: 630 }] }),
+    },
+    twitter: {
+      card: imageUrl ? "summary_large_image" : "summary",
+      title: project.title,
+      description,
+    },
+  }
 }
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
